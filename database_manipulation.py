@@ -72,13 +72,16 @@ def find_scheduled_arrival(time_str):
         table = scheduled_arrivals_sunday
     table_sec = []
     last_arrival = -1
-    scheduled_arrival_sec_prev = 0
+    scheduled_prev = 0
     for hour in table:
         for minute in table[hour]:
             scheduled_arrival_sec = int(hour)*3600 + minute*60
+            print hour, minute, scheduled_arrival_sec, scheduled_prev, last_arrival
             if scheduled_arrival_sec > time_sec and last_arrival == -1:
-                last_arrival = scheduled_arrival_sec_prev
-            scheduled_arrival_sec_prev = scheduled_arrival_sec
+                last_arrival = scheduled_prev
+                with open("log.txt", "a") as f:
+                    f.write(str(hour)+" "+str(minute)+" "+str(scheduled_arrival_sec)+" "+str(scheduled_prev)+"\n")
+            scheduled_prev = scheduled_arrival_sec
     if last_arrival == -1:
         last_arrival = scheduled_arrival_sec
     return last_arrival
@@ -91,9 +94,10 @@ def insert_new_arrival(conn, arrival_str):
 
     last_spot = get_flag(conn, "LastSpot")[0][2]
     if time_str_diff(last_spot, arrival_str) > maximum_stop:
+        first_spot = get_flag(conn, "FirstSpot")[0][2]
+        add_arrival(conn, first_spot, last_spot)
         update_flag(conn, "FirstSpot", arrival_str)
         update_flag(conn, "LastSpot", arrival_str)
-        add_arrival(conn, arrival_str, last_spot)
         update_flag(conn, "ArrivalOpen", "0")
     else:
         update_flag(conn, "LastSpot", arrival_str)
