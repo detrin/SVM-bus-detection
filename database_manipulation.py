@@ -1,5 +1,6 @@
 import sqlite3
 from settings import *
+import datetime
 
 
 def update_flag(conn, flagName, value):
@@ -51,7 +52,9 @@ def time_s2str(time_sec):
     return str(hours)+":"+str(minutes)+":"+str(time_sec)
 
 def time_str_diff(time1_str, time2_str):
-    time_diff = time_str2s(time2_str) - time_str2s(time1_str)
+    time1, time2 = time_str2s(time1_str), time_str2s(time2_str)
+    time1, time2 = min(time1, time2), max(time1, time2)
+    time_diff = time2 - time1
     return min(time_diff, 3600*24-time_diff)
 
 def time_sec_diff(time1_sec, time2_sec):
@@ -69,11 +72,13 @@ def find_scheduled_arrival(time_str):
         table = scheduled_arrivals_sunday
     table_sec = []
     last_arrival = -1
+    scheduled_arrival_sec_prev = 0
     for hour in table:
         for minute in table[hour]:
             scheduled_arrival_sec = int(hour)*3600 + minute*60
             if scheduled_arrival_sec > time_sec and last_arrival == -1:
-                last_arrival = scheduled_arrival_sec
+                last_arrival = scheduled_arrival_sec_prev
+            scheduled_arrival_sec_prev = scheduled_arrival_sec
     if last_arrival == -1:
         last_arrival = scheduled_arrival_sec
     return last_arrival
@@ -85,7 +90,7 @@ def insert_new_arrival(conn, arrival_str):
         return
 
     last_spot = get_flag(conn, "LastSpot")[0][2]
-    if time_str_diff(arrival_str, last_spot) > maximum_stop:
+    if time_str_diff(last_spot, arrival_str) > maximum_stop:
         update_flag(conn, "FirstSpot", arrival_str)
         update_flag(conn, "LastSpot", arrival_str)
         add_arrival(conn, arrival_str, last_spot)
@@ -111,6 +116,7 @@ def get_open(conn):
 def check_arrival(conn, time_str):
     if get_open(conn) == 1:
         last_spot = get_flag(conn, "LastSpot")[0][2]
-        if time_str_diff(arrival_str, last_spot) > maximum_stop:
+        if time_str_diff(last_spot, time_str) > maximum_stop:
             update_flag(conn, "ArrivalOpen", "0")
-            add_arrival(conn, arrival_str, last_spot)
+            first_spot = get_flag(conn, "FirstSpot")[0][2]
+            add_arrival(conn, first_spot, last_spot)
