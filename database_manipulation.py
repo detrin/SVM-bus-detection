@@ -1,6 +1,7 @@
 import sqlite3
 from settings import *
 import datetime
+import json
 
 
 def update_flag(conn, flagName, value):
@@ -76,16 +77,33 @@ def find_scheduled_arrival(time_str):
     for hour in table:
         for minute in table[hour]:
             scheduled_arrival_sec = int(hour)*3600 + minute*60
-            print hour, minute, scheduled_arrival_sec, scheduled_prev, last_arrival
             if scheduled_arrival_sec > time_sec and last_arrival == -1:
                 last_arrival = scheduled_prev
-                with open("log.txt", "a") as f:
-                    f.write(str(hour)+" "+str(minute)+" "+str(scheduled_arrival_sec)+" "+str(scheduled_prev)+"\n")
             scheduled_prev = scheduled_arrival_sec
     if last_arrival == -1:
         last_arrival = scheduled_arrival_sec
     return last_arrival
-        
+
+def find_next_arrival(time_str):
+    time_sec = time_str2s(time_str)
+    day_num = datetime.datetime.today().weekday()
+    if day_num < 6:
+        table = scheduled_arrivals_workdays
+    elif day_num == 6:
+        table = scheduled_arrivals_saturday
+    else:
+        table = scheduled_arrivals_sunday
+    table_sec = []
+    last_arrival = -1
+    for hour in table:
+        for minute in table[hour]:
+            scheduled_arrival_sec = int(hour)*3600 + minute*60
+            if scheduled_arrival_sec > time_sec and last_arrival == -1:
+                last_arrival = scheduled_arrival_sec
+    if last_arrival == -1:
+        last_arrival = scheduled_arrival_sec
+    return last_arrival
+
 def insert_new_arrival(conn, arrival_str):
     if get_flag(conn, "LastSpot") == [] and get_flag(conn, "FirstSpot") == []:
         insert_flag(conn, "FirstSpot", arrival_str)
@@ -93,13 +111,18 @@ def insert_new_arrival(conn, arrival_str):
         return
 
     last_spot = get_flag(conn, "LastSpot")[0][2]
+    arrival_open = get_open(conn)
     if time_str_diff(last_spot, arrival_str) > maximum_stop:
         first_spot = get_flag(conn, "FirstSpot")[0][2]
         add_arrival(conn, first_spot, last_spot)
         update_flag(conn, "FirstSpot", arrival_str)
         update_flag(conn, "LastSpot", arrival_str)
         update_flag(conn, "ArrivalOpen", "0")
+    elif arrival_open == 1:
+        update_flag(conn, "LastSpot", arrival_str)
+        update_flag(conn, "ArrivalOpen", "1")
     else:
+        update_flag(conn, "FirstSpot", arrival_str)
         update_flag(conn, "LastSpot", arrival_str)
         update_flag(conn, "ArrivalOpen", "1")
 
@@ -124,3 +147,44 @@ def check_arrival(conn, time_str):
             update_flag(conn, "ArrivalOpen", "0")
             first_spot = get_flag(conn, "FirstSpot")[0][2]
             add_arrival(conn, first_spot, last_spot)
+
+def arrivals_to_json(conn, number_of_arrivals):
+    sql = ''' 
+            SELECT * FROM (
+            SELECT * FROM arrivals ORDER BY ID DESC LIMIT ?)
+            ORDER BY ID DESC '''
+    cur = conn.cursor()
+    cur.execute(sql, (number_of_arrivals, ))
+    rows = cur.fetchall()
+    summ = 0
+    dump_d = {}
+    for i in xrange(number_of_arrivals):
+        rows[i] = list(rows[i])
+        summ += rows[i][3]
+        rows[i][3] = time_s2str(rows[i][3])
+        rows[i][3] = ":".join(rows[i][3].split(":")[1:])
+        dump_d["scheduled_arrival"] = rows[i][1]
+        dump_d["actual_arrival"] = rows[i][2]
+        dump_d["delay"] = rows[i][3]
+        rows[i] = dump_d
+    rows = json.dumps(rows)
+    with open("arrivals.json", "w") as f:
+        f.write(rows)
+
+    avg = int(round(summ/float(number_of_arrivals)))
+    avg_str = time_s2str(avg)
+    avg_str = ":".join(avg_str.split(":")[1:])
+    time_str = datetime.datetime.now()
+    time_str = time_str.strftime('%H:%M:%S')
+    arrival_next_sec = find_next_arrival(time_str)
+    arrival_next_str = time_s2str(arrival_next_sec)
+    arrival_delayed_sec = arrival_next_sec + avg
+    arrival_delayed_str = time_s2str(arrival_delayed_sec)
+    dump_d = {}
+    with open("estimate.json", "w") as f:
+        dump_d["scheduled_arrival"] = arrival_next_str
+        dump_d["estimated_arrival"] = arrival_delayed_str
+        dump_d["estimated_delay"] = avg_str
+        dump_d = json.dumps(dump_d)
+        f.write(dump_d)
+

@@ -181,3 +181,4 @@ for image_file in os.listdir(PATH_TEST):
         copyfile(os.path.join(PATH_TEST, image_file), os.path.join(PATH_NEW_POSITIVE, time_text+"_"+image_file))
     else:
         check_arrival(conn, time_text)
+    arrivals_to_json(conn, 4)
