@@ -50,7 +50,7 @@ def time_s2str(time_sec):
     time_sec %= 3600
     minutes = time_sec / 60
     time_sec %= 60
-    return str(hours)+":"+str(minutes)+":"+str(time_sec)
+    return str(hours).zfill(2)+":"+str(minutes).zfill(2)+":"+str(time_sec).zfill(2)
 
 def time_str_diff(time1_str, time2_str):
     time1, time2 = time_str2s(time1_str), time_str2s(time2_str)
@@ -114,10 +114,11 @@ def insert_new_arrival(conn, arrival_str):
     arrival_open = get_open(conn)
     if time_str_diff(last_spot, arrival_str) > maximum_stop:
         first_spot = get_flag(conn, "FirstSpot")[0][2]
-        add_arrival(conn, first_spot, last_spot)
+        update_flag(conn, "ArrivalOpen", "0")
         update_flag(conn, "FirstSpot", arrival_str)
         update_flag(conn, "LastSpot", arrival_str)
-        update_flag(conn, "ArrivalOpen", "0")
+        add_arrival(conn, first_spot, last_spot)
+        
     elif arrival_open == 1:
         update_flag(conn, "LastSpot", arrival_str)
         update_flag(conn, "ArrivalOpen", "1")
@@ -154,11 +155,12 @@ def arrivals_to_json(conn, number_of_arrivals):
             SELECT * FROM arrivals ORDER BY ID DESC LIMIT ?)
             ORDER BY ID DESC '''
     cur = conn.cursor()
-    cur.execute(sql, (number_of_arrivals, ))
+    cur.execute(sql, (number_of_arrivals*2, ))
     rows = cur.fetchall()
     summ = 0
-    dump_d = {}
-    for i in xrange(number_of_arrivals):
+    rows_dump = []
+    for i in xrange(number_of_arrivals*2):
+        dump_d = {}
         rows[i] = list(rows[i])
         summ += rows[i][3]
         rows[i][3] = time_s2str(rows[i][3])
@@ -166,10 +168,11 @@ def arrivals_to_json(conn, number_of_arrivals):
         dump_d["scheduled_arrival"] = rows[i][1]
         dump_d["actual_arrival"] = rows[i][2]
         dump_d["delay"] = rows[i][3]
-        rows[i] = dump_d
-    rows = json.dumps(rows)
-    with open("arrivals.json", "w") as f:
-        f.write(rows)
+        if len(rows_dump) == 0 or rows_dump[-1] != dump_d:
+            rows_dump.append(dump_d)
+    rows_dump = json.dumps(rows_dump[:number_of_arrivals])
+    with open("../79.143.179.60/build/json/arrivals.json", "w") as f:
+        f.write(rows_dump)
 
     avg = int(round(summ/float(number_of_arrivals)))
     avg_str = time_s2str(avg)
@@ -181,7 +184,7 @@ def arrivals_to_json(conn, number_of_arrivals):
     arrival_delayed_sec = arrival_next_sec + avg
     arrival_delayed_str = time_s2str(arrival_delayed_sec)
     dump_d = {}
-    with open("estimate.json", "w") as f:
+    with open("../79.143.179.60/build/json/estimate.json", "w") as f:
         dump_d["scheduled_arrival"] = arrival_next_str
         dump_d["estimated_arrival"] = arrival_delayed_str
         dump_d["estimated_delay"] = avg_str
