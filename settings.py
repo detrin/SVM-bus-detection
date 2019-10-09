@@ -18,6 +18,7 @@ small_bbox_area, close_y_thresh = 80*80, 500
 min_bbox_area = 40*40
 use_pretrained = True # load pre-trained SVM model from disk?
 maximum_stop = 30
+PATH_JSON = "../79.143.179.60/build/json/"
 
 scheduled_arrivals_workdays = {
     4: [48],

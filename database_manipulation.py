@@ -162,16 +162,17 @@ def arrivals_to_json(conn, number_of_arrivals):
     for i in xrange(number_of_arrivals*2):
         dump_d = {}
         rows[i] = list(rows[i])
-        summ += rows[i][3]
+        delay_s = rows[i][3]
         rows[i][3] = time_s2str(rows[i][3])
         rows[i][3] = ":".join(rows[i][3].split(":")[1:])
         dump_d["scheduled_arrival"] = rows[i][1]
         dump_d["actual_arrival"] = rows[i][2]
         dump_d["delay"] = rows[i][3]
         if len(rows_dump) == 0 or rows_dump[-1] != dump_d:
+            summ += delay_s
             rows_dump.append(dump_d)
     rows_dump = json.dumps(rows_dump[:number_of_arrivals])
-    with open("../79.143.179.60/build/json/arrivals.json", "w") as f:
+    with open(PATH_JSON+"arrivals.json", "w") as f:
         f.write(rows_dump)
 
     avg = int(round(summ/float(number_of_arrivals)))
@@ -184,7 +185,7 @@ def arrivals_to_json(conn, number_of_arrivals):
     arrival_delayed_sec = arrival_next_sec + avg
     arrival_delayed_str = time_s2str(arrival_delayed_sec)
     dump_d = {}
-    with open("../79.143.179.60/build/json/estimate.json", "w") as f:
+    with open(PATH_JSON+"estimate.json", "w") as f:
         dump_d["scheduled_arrival"] = arrival_next_str
         dump_d["estimated_arrival"] = arrival_delayed_str
         dump_d["estimated_delay"] = avg_str

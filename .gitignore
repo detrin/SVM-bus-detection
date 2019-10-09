@@ -1,1 +1,5 @@
 *.pyc
+training_images/false-positives/*
+training_images/new-yes/*
+test_images/*
+db/db01.sqlite

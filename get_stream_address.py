@@ -12,6 +12,11 @@ from bs4 import BeautifulSoup
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'
 opts = Options()
+opts.add_argument("--headless")
+opts.add_argument("--window-size=1920x1080")
+opts.add_argument("--disable-dev-shm-usage")
+opts.add_argument("--no-sandbox")
+opts.add_argument('--disable-gpu')
 opts.add_argument("user-agent="+USER_AGENT)
 
 URL = "https://www.ipcamlive.com/kfasevernikamera"
@@ -37,7 +42,7 @@ def check_exists_by_xpath(xpath):
 
 display = Xvfb()
 display.start()
-browser = webdriver.Chrome("/home/hermanda/bin/chromedriver")
+browser = webdriver.Chrome("bin/chromedriver", options=opts)
 
 # Go to the Google home page
 load_page(browser, URL)
